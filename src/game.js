@@ -14,6 +14,10 @@ export const PHASE = {
 
 export const MELD_SLOTS = 4;
 export const PAIR_SLOTS = 7;
+
+/** 退避枠から捨てるときのスコアペナルティ */
+export const DISCARD_MELD_COST = 800;
+export const DISCARD_PAIR_COST = 300;
 const HANCHAN_KYOKU = 8;
 
 const FLASH_MS = 260;
@@ -180,6 +184,38 @@ export class Game {
     }
 
     this.board.remove([[r, c], partner]);
+    this.resolveReturn = 'resume';
+    this._beginResolve();
+    return { ok: true };
+  }
+
+  /**
+   * 退避枠から1つ捨てる。スコアペナルティがある。
+   *
+   * 面子枠に面子が1つでも入ると七対子ルートが塞がるため、また対子枠が埋まると
+   * 新しい対子を確保できなくなるため、抜け道として用意している。
+   * 捨てた後は解決フェーズを回すので、枠が空いたことで盤上に残っていた面子が
+   * 改めて退避されることもある。
+   */
+  discardMeld(index) {
+    if (this.phase !== PHASE.FALLING) return { ok: false };
+    const meld = this.meldStock[index];
+    if (!meld) return { ok: false };
+    this.meldStock.splice(index, 1);
+    this.score = Math.max(0, this.score - DISCARD_MELD_COST);
+    this.onEvent({ type: 'discard', kind: 'meld', meld, cost: DISCARD_MELD_COST });
+    this.resolveReturn = 'resume';
+    this._beginResolve();
+    return { ok: true };
+  }
+
+  discardPair(index) {
+    if (this.phase !== PHASE.FALLING) return { ok: false };
+    const tile = this.pairStock[index];
+    if (!tile) return { ok: false };
+    this.pairStock.splice(index, 1);
+    this.score = Math.max(0, this.score - DISCARD_PAIR_COST);
+    this.onEvent({ type: 'discard', kind: 'pair', tile, cost: DISCARD_PAIR_COST });
     this.resolveReturn = 'resume';
     this._beginResolve();
     return { ok: true };

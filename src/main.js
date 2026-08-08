@@ -1,6 +1,8 @@
 // UI・描画・入力
 
-import { Game, PHASE, MELD_SLOTS, PAIR_SLOTS } from './game.js';
+import {
+  Game, PHASE, MELD_SLOTS, PAIR_SLOTS, DISCARD_MELD_COST, DISCARD_PAIR_COST,
+} from './game.js';
 import { MODE_A, MODE_B, tileFace, tileName } from './tiles.js';
 import { COLS, ROWS, PIECE_SIZE } from './board.js';
 
@@ -20,6 +22,8 @@ const el = {
   overScreen: $('overScreen'), overTitle: $('overTitle'), finalScore: $('finalScore'),
   overStats: $('overStats'), retryBtn: $('retryBtn'), toTitleBtn: $('toTitleBtn'),
   pauseScreen: $('pauseScreen'), resumeBtn: $('resumeBtn'), quitBtn: $('quitBtn'),
+  discardScreen: $('discardScreen'), discardTitle: $('discardTitle'), discardHand: $('discardHand'),
+  discardNote: $('discardNote'), discardOk: $('discardOk'), discardCancel: $('discardCancel'),
 };
 
 let game = null;
@@ -133,13 +137,15 @@ function renderStocks() {
   el.meldStock.innerHTML = Array.from({ length: MELD_SLOTS }, (_, i) => {
     const m = game.meldStock[i];
     if (!m) return '<div class="slot"></div>';
-    return `<div class="slot filled">${m.tiles.map((t) => tileHTML(t, 'mini')).join('')}</div>`;
+    const tiles = m.tiles.map((t) => tileHTML(t, 'mini')).join('');
+    return `<div class="slot filled" data-kind="meld" data-idx="${i}" title="タップで捨てる">${tiles}</div>`;
   }).join('');
 
   el.pairStock.innerHTML = Array.from({ length: PAIR_SLOTS }, (_, i) => {
     const p = game.pairStock[i];
     if (!p) return '<div class="slot"></div>';
-    return `<div class="slot filled">${tileHTML(p, 'mini micro')}${tileHTML(p, 'mini micro')}</div>`;
+    const tiles = tileHTML(p, 'mini micro') + tileHTML(p, 'mini micro');
+    return `<div class="slot filled" data-kind="pair" data-idx="${i}" title="タップで捨てる">${tiles}</div>`;
   }).join('');
 
   if (isNew) {
@@ -207,6 +213,8 @@ function onEvent(ev) {
     if (ev.chain >= 2) showBanner(`${ev.chain} 連鎖!`);
   } else if (ev.type === 'kan') {
     showBanner('暗槓!');
+  } else if (ev.type === 'discard') {
+    toast(`捨てました  -${ev.cost.toLocaleString()}`);
   } else if (ev.type === 'agari') {
     showAgari(ev.agari);
   } else if (ev.type === 'gameover') {
@@ -349,6 +357,55 @@ function tryBank(r, c) {
   if (res && res.ok === false && res.reason) toast(res.reason);
 }
 
+// ---------- 退避枠から捨てる ----------
+
+let pendingDiscard = null;
+
+function bindStockDiscard() {
+  for (const box of [el.meldStock, el.pairStock]) {
+    box.addEventListener('click', (e) => {
+      const slot = e.target.closest('.slot.filled');
+      if (!slot || !game) return;
+      if (game.phase !== PHASE.FALLING) {
+        toast('いま捨てられません');
+        return;
+      }
+      openDiscard(slot.dataset.kind, +slot.dataset.idx);
+    });
+  }
+  el.discardOk.addEventListener('click', () => closeDiscard(true));
+  el.discardCancel.addEventListener('click', () => closeDiscard(false));
+}
+
+function openDiscard(kind, idx) {
+  const isMeld = kind === 'meld';
+  const cost = isMeld ? DISCARD_MELD_COST : DISCARD_PAIR_COST;
+  const item = isMeld ? game.meldStock[idx] : game.pairStock[idx];
+  if (!item) return;
+
+  pendingDiscard = { kind, idx };
+  game.togglePause(); // ダイアログ表示中はピースを止める
+
+  const tiles = isMeld
+    ? item.tiles.map((t) => tileHTML(t, 'mini')).join('')
+    : tileHTML(item, 'mini') + tileHTML(item, 'mini');
+  el.discardTitle.textContent = isMeld ? `この${meldLabel(item.type)}を捨てる？` : 'この対子を捨てる？';
+  el.discardHand.innerHTML = `<div class="hand-group">${tiles}</div>`;
+  el.discardNote.innerHTML = `スコア <b>-${cost.toLocaleString()}</b>`;
+  el.discardScreen.classList.remove('hidden');
+}
+
+function closeDiscard(confirmed) {
+  const p = pendingDiscard;
+  pendingDiscard = null;
+  el.discardScreen.classList.add('hidden');
+  if (!game) return;
+  if (game.phase === PHASE.PAUSED) game.togglePause();
+  if (!confirmed || !p) return;
+  if (p.kind === 'meld') game.discardMeld(p.idx);
+  else game.discardPair(p.idx);
+}
+
 function bindKeys() {
   window.addEventListener('keydown', (e) => {
     if (!game) return;
@@ -386,6 +443,8 @@ function startGame() {
   el.overScreen.classList.add('hidden');
   el.agariScreen.classList.add('hidden');
   el.pauseScreen.classList.add('hidden');
+  el.discardScreen.classList.add('hidden');
+  pendingDiscard = null;
   // 退避枠・HUD を描いてから採寸する（中身が入ると各段の高さが変わるため）
   renderStocks();
   renderHud();
@@ -434,6 +493,7 @@ function bindMenus() {
 buildBoard();
 bindControls();
 bindBoardGestures();
+bindStockDiscard();
 bindKeys();
 bindMenus();
 layout();

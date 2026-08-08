@@ -5,6 +5,7 @@ import { evaluateHand } from '../src/yaku.js';
 import { scoreHand, bestHand, calcFu, chainMultiplier } from '../src/score.js';
 import { Board, isShuntsu, normalizeMeld } from '../src/board.js';
 import { buildWall, kindsForMode, MODE_A, MODE_B } from '../src/tiles.js';
+import { Game, PHASE, DISCARD_MELD_COST, DISCARD_PAIR_COST } from '../src/game.js';
 
 let pass = 0;
 let fail = 0;
@@ -383,6 +384,84 @@ t('モードAでは三色同順が構成不可能', () => {
   const manzu = kindsForMode(MODE_A).filter((k) => k.endsWith('m')).map((k) => +k[0]);
   const canShuntsu = manzu.some((n) => manzu.includes(n + 1) && manzu.includes(n + 2));
   ok(!canShuntsu);
+});
+
+// ================= 退避枠から捨てる =================
+console.log('\n退避枠から捨てる');
+
+function newGame(mode = MODE_B) {
+  return new Game({ mode, onEvent: () => {} });
+}
+
+t('面子を捨てるとスコアが引かれる', () => {
+  const g = newGame();
+  g.score = 5000;
+  g.meldStock = [shun('1p', '2p', '3p'), kou('7z')];
+  eq(g.discardMeld(0).ok, true);
+  eq(g.meldStock.length, 1);
+  eq(g.meldStock[0].type, 'kotsu');
+  eq(g.score, 5000 - DISCARD_MELD_COST);
+});
+
+t('対子を捨てるとスコアが引かれる', () => {
+  const g = newGame();
+  g.score = 5000;
+  g.pairStock = ['5s', '2p', '1z'];
+  eq(g.discardPair(1).ok, true);
+  eq(g.pairStock.join(','), '5s,1z');
+  eq(g.score, 5000 - DISCARD_PAIR_COST);
+});
+
+t('スコアは0未満にならない', () => {
+  const g = newGame();
+  g.score = 100;
+  g.meldStock = [kou('7z')];
+  g.discardMeld(0);
+  eq(g.score, 0);
+});
+
+t('空の枠は捨てられない', () => {
+  const g = newGame();
+  eq(g.discardMeld(0).ok, false);
+  eq(g.discardPair(3).ok, false);
+});
+
+t('落下中以外は捨てられない', () => {
+  const g = newGame();
+  g.meldStock = [kou('7z')];
+  g.phase = PHASE.RESOLVING;
+  eq(g.discardMeld(0).ok, false);
+  eq(g.meldStock.length, 1);
+});
+
+t('面子枠を空にすると七対子が発火する', () => {
+  const g = newGame();
+  g.meldStock = [kou('9m')];
+  g.pairStock = ['1p', '2p', '3p', '4p', '5p', '6p', '7p'];
+  g.discardMeld(0);
+  // 捨てた後は解決フェーズを回すので、進めると和了判定に到達する
+  for (let i = 0; i < 10 && g.phase !== PHASE.AGARI; i++) g.update(300);
+  eq(g.phase, PHASE.AGARI);
+  ok(g.lastAgari.chiitoi, '七対子で和了している');
+  ok(g.lastAgari.scored.yaku.some((y) => y.name === '七対子'));
+});
+
+t('面子枠を空けると盤上に残っていた面子が改めて退避される', () => {
+  const g = newGame();
+  // 面子枠を満杯にし、盤面には成立済みの順子を置いておく
+  g.meldStock = [kou('7z'), kou('6z'), kou('5z'), kou('1z')];
+  g.pairStock = [];
+  const bottom = g.board.rows - 1;
+  g.board.set(bottom, 0, '1s');
+  g.board.set(bottom, 1, '2s');
+  g.board.set(bottom, 2, '3s');
+  eq(g.board.findMelds(0).length, 0, '枠が満杯の間は退避されない');
+
+  g.discardMeld(0);
+  for (let i = 0; i < 10 && g.phase === PHASE.RESOLVING; i++) g.update(300);
+  eq(g.meldStock.length, 4, '空いた枠に順子が入る');
+  ok(g.meldStock.some((m) => m.type === 'shuntsu'), '順子が退避された');
+  eq(g.board.get(bottom, 0), null, '盤面から消えている');
 });
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

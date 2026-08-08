@@ -110,7 +110,31 @@ html, body {
   flex: 1;
   min-width: 0;
 }
-.slot.filled { border-style: solid; border-color: var(--gold); background: rgba(217, 178, 95, .1); }
+.slot.filled {
+  position: relative;
+  border-style: solid;
+  border-color: var(--gold);
+  background: rgba(217, 178, 95, .1);
+  cursor: pointer;
+}
+/* タップで捨てられることを示すバッジ */
+.slot.filled::after {
+  content: '×';
+  position: absolute;
+  top: -6px;
+  right: -4px;
+  z-index: 2;
+  width: 14px;
+  height: 14px;
+  line-height: 13px;
+  text-align: center;
+  font-size: 11px;
+  border-radius: 50%;
+  background: #16241d;
+  border: 1px solid var(--gold);
+  color: var(--gold);
+}
+.slot.filled:active { background: rgba(217, 178, 95, .3); }
 .slot.pop { animation: pop .32s ease; }
 
 #pairStock .slot { min-height: calc(var(--mini) * 1.1 + 4px); }

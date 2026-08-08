@@ -94,12 +94,17 @@
       <p>盤面で同一牌が隣り合うと<b>光ります</b>。タップすると<b>対子枠</b>へ退避します。<br>
       対子枠に同じ牌がすでにあるときにタップすると、合体して<b>暗槓</b>になり面子枠へ入ります。</p>
 
-      <h3>3. 和了</h3>
+      <h3>3. 退避枠から捨てる</h3>
+      <p>面子枠・対子枠の牌は<b>タップすると捨てられます</b>（× バッジが目印）。<br>
+      面子枠に面子が1つでも入ると<b>七対子が狙えなくなる</b>ので、その抜け道です。対子枠が満杯で新しい対子を確保できないときにも使います。<br>
+      ペナルティとして<b>面子は -800点、対子は -300点</b>。枠が空くと、面子枠が満杯で盤上に残っていた面子が改めて退避されることがあります。</p>
+
+      <h3>4. 和了</h3>
       <p><b>面子枠4つ＋対子枠1つ以上</b>で自動的に和了。雀頭は最も高い点数になる対子が自動で選ばれます（高点法）。<br>
       面子枠が空のまま<b>対子を7つ</b>集めると<b>七対子</b>で和了。<br>
       使わなかった対子は次局へ持ち越します。</p>
 
-      <h3>4. 点数</h3>
+      <h3>5. 点数</h3>
       <p>すべて門前・ツモ扱いのため<b>門前清自摸和</b>が常時つきます。符・翻は麻雀に準拠（待ち符は0、平和は20符固定、七対子は25符）。<br>
       連鎖すると和了点に倍率がかかります（2連鎖×1.5／3連鎖×2.0／5連鎖以上×3.0）。</p>
 
@@ -136,6 +141,17 @@
       <div id="overStats" class="over-stats"></div>
       <button id="retryBtn" class="primary-btn">もう一局</button>
       <button id="toTitleBtn" class="ghost-btn">タイトルへ</button>
+    </div>
+  </div>
+
+  <!-- ===== 退避枠から捨てる ===== -->
+  <div id="discardScreen" class="overlay hidden">
+    <div class="panel">
+      <h2 id="discardTitle">捨てますか？</h2>
+      <div id="discardHand" class="agari-hand"></div>
+      <p id="discardNote" class="tagline"></p>
+      <button id="discardOk" class="primary-btn">捨てる</button>
+      <button id="discardCancel" class="ghost-btn">やめる</button>
     </div>
   </div>
 
