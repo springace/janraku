@@ -464,5 +464,81 @@ t('面子枠を空けると盤上に残っていた面子が改めて退避さ�
   eq(g.board.get(bottom, 0), null, '盤面から消えている');
 });
 
+// ================= 落下ピースの回転と着地 =================
+console.log('\n落下ピースの回転と着地');
+
+/** ピースが占めるセルを "r,c|r,c" で表す */
+const cellsOf = (g) => g.pieceCells().map(([r, c]) => `${r},${c}`).join('|');
+
+t('右回転で 上→右→下→左 と一周する', () => {
+  const g = newGame();
+  const { col, row } = g.piece;
+  eq(g.piece.rot, 0);
+  eq(cellsOf(g), `${row},${col}|${row - 1},${col}`, '初期は軸の上');
+  g.rotateCW();
+  eq(cellsOf(g), `${g.piece.row},${g.piece.col}|${g.piece.row},${g.piece.col + 1}`, '右');
+  g.rotateCW();
+  eq(cellsOf(g), `${g.piece.row},${g.piece.col}|${g.piece.row + 1},${g.piece.col}`, '下');
+  g.rotateCW();
+  eq(cellsOf(g), `${g.piece.row},${g.piece.col}|${g.piece.row},${g.piece.col - 1}`, '左');
+  g.rotateCW();
+  eq(g.piece.rot, 0);
+});
+
+t('左回転は右回転の逆', () => {
+  const g = newGame();
+  const before = cellsOf(g);
+  g.rotateCCW();
+  eq(g.piece.rot, 3);
+  g.rotateCW();
+  eq(cellsOf(g), before);
+});
+
+t('壁際で回転すると内側へ押し戻される', () => {
+  const g = newGame();
+  g.piece.col = 0;
+  g.piece.rot = 0;
+  g.rotateCCW(); // 左向きにしようとすると盤外
+  eq(g.piece.rot, 3, '回転は成立する');
+  ok(g.piece.col >= 1, `軸が内側へずれる (col=${g.piece.col})`);
+  for (const [, c] of g.pieceCells()) ok(c >= 0, '盤外にはみ出さない');
+});
+
+t('回転先が埋まっていると軸をずらして回る', () => {
+  const g = newGame();
+  const r = 5;
+  g.piece.col = 3;
+  g.piece.row = r;
+  g.piece.rot = 0;
+  g.board.set(r, 4, '1z'); // 右隣を塞ぐ
+  g.rotateCW();
+  eq(g.piece.rot, 1, '右向きになる');
+  for (const [rr, cc] of g.pieceCells()) ok(g.board.get(rr, cc) === null, '既存の牌と重ならない');
+});
+
+t('横向きに置くと、下が空いている牌は落下する', () => {
+  const g = newGame();
+  const bottom = g.board.rows - 1;
+  // 列3だけ1段高くしておく
+  g.board.set(bottom, 3, '1z');
+  g.piece = { tiles: ['5p', '6p'], col: 3, row: 2, rot: 1 }; // 軸=列3、相方=列4
+  g.hardDrop();
+  for (let i = 0; i < 6 && g.phase === PHASE.RESOLVING; i++) g.update(300);
+
+  eq(g.board.get(bottom - 1, 3), '5p', '軸は積み上がった牌の上');
+  eq(g.board.get(bottom, 4), '6p', '相方は空いていた下まで落ちる');
+  eq(g.board.get(bottom - 1, 4), null, '浮いたままにならない');
+});
+
+t('縦向きの落下では隙間ができない', () => {
+  const g = newGame();
+  const bottom = g.board.rows - 1;
+  g.piece = { tiles: ['5p', '6p'], col: 2, row: 2, rot: 0 };
+  g.hardDrop();
+  for (let i = 0; i < 6 && g.phase === PHASE.RESOLVING; i++) g.update(300);
+  eq(g.board.get(bottom, 2), '5p');
+  eq(g.board.get(bottom - 1, 2), '6p');
+});
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

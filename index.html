@@ -46,10 +46,11 @@
 
   <nav id="controls">
     <button class="ctrl" data-act="left" aria-label="左へ">◀</button>
-    <button class="ctrl" data-act="rotate" aria-label="回転">⟳</button>
+    <button class="ctrl" data-act="rotL" aria-label="左回転">↺</button>
+    <button class="ctrl" data-act="rotR" aria-label="右回転">↻</button>
     <button class="ctrl" data-act="right" aria-label="右へ">▶</button>
-    <button class="ctrl" data-act="soft" aria-label="ソフトドロップ">▼</button>
-    <button class="ctrl wide" data-act="hard" aria-label="ハードドロップ">⤓</button>
+    <button class="ctrl" data-act="soft" aria-label="ゆっくり落とす">▼</button>
+    <button class="ctrl wide" data-act="hard" aria-label="落とす">⤓</button>
   </nav>
 
   <!-- ===== タイトル ===== -->
@@ -88,7 +89,7 @@
     <div class="panel scroll">
       <h2>遊び方</h2>
       <h3>1. 落として面子を作る</h3>
-      <p>麻雀牌が縦2枚組で落ちてきます。<b>回転</b>は上下2枚の入れ替えです。<br>
+      <p>麻雀牌が2枚組で落ちてきます。<b>下の牌を軸にもう1枚が回る</b>ので、縦にも横にも置けます。<br>
       タテかヨコに隣り合う3マスで<b>順子</b>（同種の連番3枚・順不同OK）か<b>刻子</b>（同一牌3枚）が揃うと、その面子は<b>面子枠</b>へ退避します。4枚並べば<b>槓子</b>です。</p>
 
       <h3>2. 雀頭はタップで確保する</h3>
@@ -115,9 +116,9 @@
       老頭萬子モードでは萬子の順子が作れないため<b>三色同順は成立しません</b>。</p>
 
       <h3>操作</h3>
-      <p>ボタンのほか、盤面を<b>左右スワイプ</b>で移動、<b>下スワイプ</b>でハードドロップ、<b>上スワイプ</b>で回転。<br>
+      <p>ボタンのほか、盤面を<b>左右スワイプ</b>で移動、<b>下スワイプ</b>で落とす、<b>上スワイプ</b>で右回転。<br>
       音は右上のスピーカーで消音、BGM と効果音の個別切替は一時停止画面から。設定は次回も保持されます。<br>
-      キーボード: ←→ 移動 / ↑ 回転 / ↓ ソフトドロップ / Space ハードドロップ / P ポーズ</p>
+      キーボード: ←→ 移動 / ↑ 右回転 / ↓ 左回転 / Space 落とす / Shift ゆっくり落とす / P ポーズ</p>
 
       <button id="rulesCloseBtn" class="primary-btn">閉じる</button>
     </div>

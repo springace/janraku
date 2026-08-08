@@ -12,6 +12,14 @@ export const PHASE = {
   PAUSED: 'paused',
 };
 
+/**
+ * 落下ピースの向き。tiles[0] を軸として、tiles[1] が軸のまわりを回る。
+ * 値は軸から見た [列, 行] のずれ。0=上 / 1=右 / 2=下 / 3=左
+ */
+const ORIENT = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+/** 回転が壁や既存の牌に阻まれたときに試すずらし量 */
+const KICKS = [[0, 0], [-1, 0], [1, 0], [0, -1], [0, 1]];
+
 export const MELD_SLOTS = 4;
 export const PAIR_SLOTS = 7;
 
@@ -90,16 +98,23 @@ export class Game {
   /** 落下中ピースが占めるセル [row, col, tileId][] */
   pieceCells() {
     if (!this.piece) return [];
-    const { tiles, col, row } = this.piece;
-    return tiles.map((t, i) => [row - (PIECE_SIZE - 1) + i, col, t]);
+    const { tiles, col, row, rot } = this.piece;
+    const [dc, dr] = ORIENT[rot];
+    return [
+      [row, col, tiles[0]],
+      [row + dr, col + dc, tiles[1]],
+    ];
   }
 
-  /** ハードドロップ着地予測位置 */
-  ghostRow() {
-    if (!this.piece) return null;
+  /** ハードドロップ着地予測位置のセル [row, col][] */
+  ghostCells() {
+    if (!this.piece) return [];
+    const { col, rot } = this.piece;
     let r = this.piece.row;
-    while (this._canPlace(this.piece.col, r + 1)) r++;
-    return r;
+    while (this._canPlace(col, r + 1, rot)) r++;
+    if (r === this.piece.row) return [];
+    const [dc, dr] = ORIENT[rot];
+    return [[r, col], [r + dr, col + dc]];
   }
 
   // ---------- 操作 ----------
@@ -109,25 +124,42 @@ export class Game {
 
   _shift(d) {
     if (this.phase !== PHASE.FALLING || !this.piece) return;
-    if (this._canPlace(this.piece.col + d, this.piece.row)) {
-      this.piece.col += d;
+    const p = this.piece;
+    if (this._canPlace(p.col + d, p.row, p.rot)) {
+      p.col += d;
       this._refreshLockTimer();
       this.onEvent({ type: 'move' });
     }
   }
 
-  /** 回転 = ピース内の牌の巡回シフト（2枚なら入れ替え） */
-  rotate() {
+  /** 右回転（時計回り） */
+  rotateCW() { this._rotate(1); }
+  /** 左回転（反時計回り） */
+  rotateCCW() { this._rotate(-1); }
+
+  /**
+   * 軸のまわりに回す。回転先が塞がっていれば KICKS の順に軸をずらして試し、
+   * どれも入らなければ回転しない。
+   */
+  _rotate(dir) {
     if (this.phase !== PHASE.FALLING || !this.piece) return;
-    const t = [...this.piece.tiles];
-    t.unshift(t.pop());
-    this.piece.tiles = t;
-    this.onEvent({ type: 'rotate' });
+    const p = this.piece;
+    const rot = (p.rot + dir + 4) % 4;
+    for (const [dc, dr] of KICKS) {
+      if (this._canPlace(p.col + dc, p.row + dr, rot)) {
+        p.col += dc;
+        p.row += dr;
+        p.rot = rot;
+        this._refreshLockTimer();
+        this.onEvent({ type: 'rotate' });
+        return;
+      }
+    }
   }
 
   softDrop() {
     if (this.phase !== PHASE.FALLING || !this.piece) return;
-    if (this._canPlace(this.piece.col, this.piece.row + 1)) {
+    if (this._canPlace(this.piece.col, this.piece.row + 1, this.piece.rot)) {
       this.piece.row++;
       this.dropTimer = 0;
       this.score += 1;
@@ -138,7 +170,7 @@ export class Game {
 
   hardDrop() {
     if (this.phase !== PHASE.FALLING || !this.piece) return;
-    while (this._canPlace(this.piece.col, this.piece.row + 1)) {
+    while (this._canPlace(this.piece.col, this.piece.row + 1, this.piece.rot)) {
       this.piece.row++;
       this.score += 2;
     }
@@ -251,7 +283,7 @@ export class Game {
 
   _updateFalling(dt) {
     if (!this.piece) return;
-    if (this._canPlace(this.piece.col, this.piece.row + 1)) {
+    if (this._canPlace(this.piece.col, this.piece.row + 1, this.piece.rot)) {
       this.lockTimer = -1;
       this.dropTimer += dt;
       if (this.dropTimer >= this.dropInterval) {
@@ -266,14 +298,14 @@ export class Game {
   }
 
   _refreshLockTimer() {
-    if (this.lockTimer >= 0 && this._canPlace(this.piece.col, this.piece.row + 1)) {
+    if (this.lockTimer >= 0 && this._canPlace(this.piece.col, this.piece.row + 1, this.piece.rot)) {
       this.lockTimer = -1;
     }
   }
 
   _lock() {
-    const { tiles, col, row } = this.piece;
-    for (let i = 0; i < PIECE_SIZE; i++) this.board.set(row - (PIECE_SIZE - 1) + i, col, tiles[i]);
+    // 横向きで置くと片方の下が空くことがあるが、解決フェーズ冒頭の重力で落ちる
+    for (const [r, c, t] of this.pieceCells()) this.board.set(r, c, t);
     this.piece = null;
     this.lockTimer = -1;
     this.onEvent({ type: 'lock' });
@@ -386,24 +418,22 @@ export class Game {
     return this.pairStock.length < PAIR_SLOTS;
   }
 
-  _canPlace(col, row) {
-    for (let i = 0; i < PIECE_SIZE; i++) {
-      if (!this.board.isEmpty(row - (PIECE_SIZE - 1) + i, col)) return false;
-    }
-    return true;
+  _canPlace(col, row, rot) {
+    const [dc, dr] = ORIENT[rot];
+    return this.board.isEmpty(row, col) && this.board.isEmpty(row + dr, col + dc);
   }
 
   _spawn() {
     const col = Math.floor(this.board.cols / 2) - 1;
     const tiles = this.next;
     this.next = this._draw();
-    if (!this._canPlace(col, PIECE_SIZE - 1)) {
+    if (!this._canPlace(col, 1, 0)) {
       this.piece = null;
       this.phase = PHASE.GAMEOVER;
       this.onEvent({ type: 'gameover' });
       return;
     }
-    this.piece = { tiles, col, row: PIECE_SIZE - 1 };
+    this.piece = { tiles, col, row: 1, rot: 0 };
     this.dropTimer = 0;
     this.lockTimer = -1;
     this.phase = PHASE.FALLING;

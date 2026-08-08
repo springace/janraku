@@ -1,7 +1,10 @@
 // バランス調整用スイープ: 牌供給バイアスと盤面高さを変えて和了率を測る。
 //   node test/balance.mjs
 import { Game, PHASE, MELD_SLOTS } from '../src/game.js';
-import { Board, PIECE_SIZE } from '../src/board.js';
+import { Board } from '../src/board.js';
+
+/** game.js の ORIENT と同じ定義（0=上 1=右 2=下 3=左） */
+const ORIENT = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 import { MODE_A, MODE_B } from '../src/tiles.js';
 
 function cloneBoard(b) {
@@ -10,41 +13,41 @@ function cloneBoard(b) {
   return n;
 }
 
-const TOP = PIECE_SIZE - 1;
-
-function landingRow(board, col) {
-  const fits = (r) => Array.from({ length: PIECE_SIZE }, (_, i) => i).every((i) => board.isEmpty(r - TOP + i, col));
-  let row = TOP;
-  if (!fits(row)) return null;
-  while (fits(row + 1)) row++;
-  return row;
-}
-
 function bestPlacement(g) {
-  const base = g.piece.tiles;
+  const [a, b] = g.piece.tiles;
   let best = null;
-  for (let rot = 0; rot < PIECE_SIZE; rot++) {
-    const tiles = base.map((_, i) => base[(i + rot) % PIECE_SIZE]);
+  for (let rot = 0; rot < 4; rot++) {
     for (let col = 0; col < g.board.cols; col++) {
-      const b = cloneBoard(g.board);
-      const row = landingRow(b, col);
-      if (row === null) continue;
-      for (let i = 0; i < PIECE_SIZE; i++) b.set(row - TOP + i, col, tiles[i]);
-      b.applyGravity();
-      const melds = b.findMelds(MELD_SLOTS - g.meldStock.length);
+      const bd = cloneBoard(g.board);
+      const cells = dropCells(bd, col, rot);
+      if (!cells) continue;
+      bd.set(cells[0][0], cells[0][1], a);
+      bd.set(cells[1][0], cells[1][1], b);
+      bd.applyGravity();
+      const melds = bd.findMelds(MELD_SLOTS - g.meldStock.length);
       const h = [];
-      for (let c = 0; c < b.cols; c++) {
+      for (let c = 0; c < bd.cols; c++) {
         let hh = 0;
-        for (let r = 0; r < b.rows; r++) if (b.grid[r][c]) { hh = b.rows - r; break; }
+        for (let r = 0; r < bd.rows; r++) if (bd.grid[r][c]) { hh = bd.rows - r; break; }
         h.push(hh);
       }
       let bump = 0;
       for (let c = 0; c + 1 < h.length; c++) bump += Math.abs(h[c] - h[c + 1]);
-      const s = melds.length * 5000 + b.pairableCells().size * 40 - Math.max(...h) * 60 - bump * 12 + Math.random();
-      if (!best || s > best.s) best = { s, col, rot };
+      const sc = melds.length * 5000 + bd.pairableCells().size * 40 - Math.max(...h) * 60 - bump * 12 + Math.random();
+      if (!best || sc > best.s) best = { s: sc, col, rot };
     }
   }
   return best;
+}
+
+/** 指定の列・向きで落としたときに2枚が収まるセル */
+function dropCells(board, col, rot) {
+  const [dc, dr] = ORIENT[rot];
+  const fits = (r) => board.isEmpty(r, col) && board.isEmpty(r + dr, col + dc);
+  let row = 1;
+  if (!fits(row)) return null;
+  while (fits(row + 1)) row++;
+  return [[row, col], [row + dr, col + dc]];
 }
 
 function play(cfg) {
@@ -74,7 +77,7 @@ function play(cfg) {
       }
       const p = bestPlacement(g);
       if (p) {
-        for (let i = 0; i < p.rot; i++) g.rotate();
+        for (let i = 0; i < p.rot; i++) g.rotateCW();
         for (let n = 0; n < g.board.cols && g.piece && g.piece.col !== p.col; n++) {
           const before = g.piece.col;
           if (g.piece.col < p.col) g.moveRight(); else g.moveLeft();

@@ -6,7 +6,7 @@ import {
 import { MODE_A, MODE_B, tileName } from './tiles.js';
 import { tileSVG } from './tileart.js';
 import { GameAudio } from './audio.js';
-import { COLS, ROWS, PIECE_SIZE } from './board.js';
+import { COLS, ROWS } from './board.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -93,12 +93,9 @@ function renderBoard() {
   if (game.piece) {
     for (const [r, c, t] of game.pieceCells()) pieceMap.set(r * COLS + c, t);
   }
-  const ghost = game.piece && game.phase === PHASE.FALLING ? game.ghostRow() : null;
   const ghostSet = new Set();
-  if (ghost !== null && ghost !== game.piece.row) {
-    for (let i = 0; i < PIECE_SIZE; i++) {
-      ghostSet.add((ghost - (PIECE_SIZE - 1) + i) * COLS + game.piece.col);
-    }
+  if (game.phase === PHASE.FALLING) {
+    for (const [r, c] of game.ghostCells()) ghostSet.add(r * COLS + c);
   }
   const pairable = game.pairableCells();
   const flashSet = new Set(game.flash.map(([r, c]) => r * COLS + c));
@@ -303,7 +300,8 @@ function act(name) {
   if (!game || game.phase !== PHASE.FALLING) return;
   if (name === 'left') game.moveLeft();
   else if (name === 'right') game.moveRight();
-  else if (name === 'rotate') game.rotate();
+  else if (name === 'rotL') game.rotateCCW();
+  else if (name === 'rotR') game.rotateCW();
   else if (name === 'soft') game.softDrop();
   else if (name === 'hard') game.hardDrop();
 }
@@ -371,7 +369,7 @@ function bindBoardGestures() {
     }
     if (appliedH !== 0) return; // 横移動として消費済み
     if (dy > tilePx * 1.6 && Math.abs(dx) < tilePx) game.hardDrop();
-    else if (dy < -tilePx * 1.2 && Math.abs(dx) < tilePx) game.rotate();
+    else if (dy < -tilePx * 1.2 && Math.abs(dx) < tilePx) game.rotateCW();
   };
   el.board.addEventListener('pointerup', finish);
   el.board.addEventListener('pointercancel', () => { active = false; });
@@ -440,9 +438,10 @@ function bindKeys() {
     const k = e.key;
     if (k === 'ArrowLeft') act('left');
     else if (k === 'ArrowRight') act('right');
-    else if (k === 'ArrowUp') act('rotate');
-    else if (k === 'ArrowDown') act('soft');
+    else if (k === 'ArrowUp') act('rotR');
+    else if (k === 'ArrowDown') act('rotL');
     else if (k === ' ') act('hard');
+    else if (k === 'Shift') act('soft');
     else if (k === 'p' || k === 'P') togglePause();
     else return;
     e.preventDefault();
