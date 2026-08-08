@@ -2,8 +2,10 @@
 
 import { suitOf, numOf } from './tiles.js';
 
-export const COLS = 6;
+export const COLS = 8;
 export const ROWS = 14;
+/** 落下ピースの牌数（縦並び） */
+export const PIECE_SIZE = 2;
 
 const PRIORITY = { kantsu: 3, kotsu: 2, shuntsu: 1 };
 

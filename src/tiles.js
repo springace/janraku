@@ -57,11 +57,11 @@ export function buildWall(mode, inPlay = [], rand = Math.random) {
  * 牌の供給器。
  *
  * 一様ランダムに配ると「隣接3マスで順子/刻子が揃う」確率が低すぎてゲームが成立しないため、
- * 一定確率でピース3枚に「テーマ」（同一種＋近い数字、または同一字牌）を与えて配る。
+ * 一定確率でピースの牌に「テーマ」（同一種＋近い数字、または同一字牌）を与えて配る。
  * 残り枚数を管理しているので「同じ牌は世界に4枚まで」の制約は保たれる。
  */
 export class TileSupply {
-  constructor(mode, { bias = 0.72, rand = Math.random } = {}) {
+  constructor(mode, { bias = 0.45, rand = Math.random } = {}) {
     this.mode = mode;
     this.bias = bias;
     this.rand = rand;
@@ -110,19 +110,19 @@ export class TileSupply {
     return avail[avail.length - 1];
   }
 
-  /** ピース3枚を引く。inPlay は山が尽きたときの再構成に使う */
-  drawPiece(inPlay = []) {
-    if (this.total < 3) this.replenish(inPlay);
-    if (this.total < 3) this.replenish([]);
+  /** ピースを n 枚引く。inPlay は山が尽きたときの再構成に使う */
+  drawPiece(inPlay = [], n = 2) {
+    if (this.total < n) this.replenish(inPlay);
+    if (this.total < n) this.replenish([]);
 
     const weight = this.rand() < this.bias ? this._themeWeight() : () => 1;
     const out = [];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < n; i++) {
       const t = this._pick(weight);
       if (t === null) break;
       out.push(this._take(t));
     }
-    while (out.length < 3) out.push(out[0] || this.kinds[0]);
+    while (out.length < n) out.push(out[0] || this.kinds[0]);
     return out;
   }
 

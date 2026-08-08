@@ -137,7 +137,7 @@ html, body {
 
 #board {
   display: grid;
-  grid-template-columns: repeat(6, var(--tile));
+  grid-template-columns: repeat(var(--cols, 8), var(--tile));
   grid-template-rows: repeat(var(--rows, 14), calc(var(--tile) * 1.2));
   gap: 1px;
   padding: 4px;

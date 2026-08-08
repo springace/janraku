@@ -2,7 +2,7 @@
 
 import { Game, PHASE, MELD_SLOTS, PAIR_SLOTS } from './game.js';
 import { MODE_A, MODE_B, tileFace, tileName } from './tiles.js';
-import { COLS, ROWS } from './board.js';
+import { COLS, ROWS, PIECE_SIZE } from './board.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -68,8 +68,16 @@ function layout() {
   tilePx = Math.max(14, Math.floor(Math.min(byW, byH)));
   document.documentElement.style.setProperty('--tile', tilePx + 'px');
   document.documentElement.style.setProperty('--rows', ROWS);
+  document.documentElement.style.setProperty('--cols', COLS);
   const mini = Math.max(13, Math.min(22, Math.floor((el.app.clientWidth - 60) / 18)));
   document.documentElement.style.setProperty('--mini', mini + 'px');
+
+  // 端数や測定誤差ではみ出す場合に備えて、実寸で収まるまで縮める
+  for (let i = 0; i < 24 && tilePx > 14; i++) {
+    if (el.board.offsetHeight <= el.playfield.clientHeight && el.board.offsetWidth <= el.playfield.clientWidth) break;
+    tilePx--;
+    document.documentElement.style.setProperty('--tile', tilePx + 'px');
+  }
 }
 
 function renderBoard() {
@@ -80,7 +88,9 @@ function renderBoard() {
   const ghost = game.piece && game.phase === PHASE.FALLING ? game.ghostRow() : null;
   const ghostSet = new Set();
   if (ghost !== null && ghost !== game.piece.row) {
-    for (let i = 0; i < 3; i++) ghostSet.add((ghost - 2 + i) * COLS + game.piece.col);
+    for (let i = 0; i < PIECE_SIZE; i++) {
+      ghostSet.add((ghost - (PIECE_SIZE - 1) + i) * COLS + game.piece.col);
+    }
   }
   const pairable = game.pairableCells();
   const flashSet = new Set(game.flash.map(([r, c]) => r * COLS + c));
@@ -376,10 +386,11 @@ function startGame() {
   el.overScreen.classList.add('hidden');
   el.agariScreen.classList.add('hidden');
   el.pauseScreen.classList.add('hidden');
-  layout();
-  renderBoard();
+  // 退避枠・HUD を描いてから採寸する（中身が入ると各段の高さが変わるため）
   renderStocks();
   renderHud();
+  layout();
+  renderBoard();
 }
 
 function bindMenus() {

@@ -1,7 +1,7 @@
 // バランス調整用スイープ: 牌供給バイアスと盤面高さを変えて和了率を測る。
 //   node test/balance.mjs
 import { Game, PHASE, MELD_SLOTS } from '../src/game.js';
-import { Board } from '../src/board.js';
+import { Board, PIECE_SIZE } from '../src/board.js';
 import { MODE_A, MODE_B } from '../src/tiles.js';
 
 function cloneBoard(b) {
@@ -10,9 +10,11 @@ function cloneBoard(b) {
   return n;
 }
 
+const TOP = PIECE_SIZE - 1;
+
 function landingRow(board, col) {
-  const fits = (r) => [0, 1, 2].every((i) => board.isEmpty(r - 2 + i, col));
-  let row = 2;
+  const fits = (r) => Array.from({ length: PIECE_SIZE }, (_, i) => i).every((i) => board.isEmpty(r - TOP + i, col));
+  let row = TOP;
   if (!fits(row)) return null;
   while (fits(row + 1)) row++;
   return row;
@@ -21,13 +23,13 @@ function landingRow(board, col) {
 function bestPlacement(g) {
   const base = g.piece.tiles;
   let best = null;
-  for (let rot = 0; rot < 3; rot++) {
-    const tiles = [base[rot % 3], base[(1 + rot) % 3], base[(2 + rot) % 3]];
+  for (let rot = 0; rot < PIECE_SIZE; rot++) {
+    const tiles = base.map((_, i) => base[(i + rot) % PIECE_SIZE]);
     for (let col = 0; col < g.board.cols; col++) {
       const b = cloneBoard(g.board);
       const row = landingRow(b, col);
       if (row === null) continue;
-      for (let i = 0; i < 3; i++) b.set(row - 2 + i, col, tiles[i]);
+      for (let i = 0; i < PIECE_SIZE; i++) b.set(row - TOP + i, col, tiles[i]);
       b.applyGravity();
       const melds = b.findMelds(MELD_SLOTS - g.meldStock.length);
       const h = [];

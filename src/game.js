@@ -1,7 +1,7 @@
 // ゲームループと状態管理
 
 import { MODE_A, TileSupply } from './tiles.js';
-import { Board, COLS, ROWS, normalizeMeld } from './board.js';
+import { Board, COLS, ROWS, PIECE_SIZE, normalizeMeld } from './board.js';
 import { scoreHand, bestHand, chainMultiplier } from './score.js';
 
 export const PHASE = {
@@ -87,7 +87,7 @@ export class Game {
   pieceCells() {
     if (!this.piece) return [];
     const { tiles, col, row } = this.piece;
-    return tiles.map((t, i) => [row - 2 + i, col, t]);
+    return tiles.map((t, i) => [row - (PIECE_SIZE - 1) + i, col, t]);
   }
 
   /** ハードドロップ着地予測位置 */
@@ -112,11 +112,12 @@ export class Game {
     }
   }
 
-  /** 回転 = ピース内3枚の巡回シフト */
+  /** 回転 = ピース内の牌の巡回シフト（2枚なら入れ替え） */
   rotate() {
     if (this.phase !== PHASE.FALLING || !this.piece) return;
-    const t = this.piece.tiles;
-    this.piece.tiles = [t[2], t[0], t[1]];
+    const t = [...this.piece.tiles];
+    t.unshift(t.pop());
+    this.piece.tiles = t;
     this.onEvent({ type: 'rotate' });
   }
 
@@ -236,7 +237,7 @@ export class Game {
 
   _lock() {
     const { tiles, col, row } = this.piece;
-    for (let i = 0; i < 3; i++) this.board.set(row - 2 + i, col, tiles[i]);
+    for (let i = 0; i < PIECE_SIZE; i++) this.board.set(row - (PIECE_SIZE - 1) + i, col, tiles[i]);
     this.piece = null;
     this.lockTimer = -1;
     this.onEvent({ type: 'lock' });
@@ -350,8 +351,8 @@ export class Game {
   }
 
   _canPlace(col, row) {
-    for (let i = 0; i < 3; i++) {
-      if (!this.board.isEmpty(row - 2 + i, col)) return false;
+    for (let i = 0; i < PIECE_SIZE; i++) {
+      if (!this.board.isEmpty(row - (PIECE_SIZE - 1) + i, col)) return false;
     }
     return true;
   }
@@ -360,13 +361,13 @@ export class Game {
     const col = Math.floor(this.board.cols / 2) - 1;
     const tiles = this.next;
     this.next = this._draw();
-    if (!this._canPlace(col, 2)) {
+    if (!this._canPlace(col, PIECE_SIZE - 1)) {
       this.piece = null;
       this.phase = PHASE.GAMEOVER;
       this.onEvent({ type: 'gameover' });
       return;
     }
-    this.piece = { tiles, col, row: 2 };
+    this.piece = { tiles, col, row: PIECE_SIZE - 1 };
     this.dropTimer = 0;
     this.lockTimer = -1;
     this.phase = PHASE.FALLING;
@@ -374,7 +375,7 @@ export class Game {
   }
 
   _draw() {
-    return this.supply.drawPiece(this._inPlay());
+    return this.supply.drawPiece(this._inPlay(), PIECE_SIZE);
   }
 
   /** 山を再構成するときに差し引く「場に出ている牌」 */
