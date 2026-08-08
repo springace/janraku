@@ -3,7 +3,8 @@
 import {
   Game, PHASE, MELD_SLOTS, PAIR_SLOTS, DISCARD_MELD_COST, DISCARD_PAIR_COST,
 } from './game.js';
-import { MODE_A, MODE_B, tileFace, tileName } from './tiles.js';
+import { MODE_A, MODE_B, tileName } from './tiles.js';
+import { tileSVG } from './tileart.js';
 import { COLS, ROWS, PIECE_SIZE } from './board.js';
 
 const $ = (id) => document.getElementById(id);
@@ -37,9 +38,7 @@ let toastTimer = 0;
 // ---------- 牌の描画 ----------
 
 function tileHTML(id, size = '') {
-  const f = tileFace(id);
-  const sub = f.sub ? `<span class="s">${f.sub}</span>` : '';
-  return `<div class="tile ${f.cls} ${size}" title="${tileName(id)}"><span class="m">${f.main}</span>${sub}</div>`;
+  return `<div class="tile ${size}" title="${tileName(id)}">${tileSVG(id)}</div>`;
 }
 
 // ---------- 盤面 ----------

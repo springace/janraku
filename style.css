@@ -191,36 +191,26 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  line-height: .96;
-  font-weight: 800;
   overflow: hidden;
 }
-.tile .m { font-size: calc(var(--tile) * .52); }
-.tile .s { font-size: calc(var(--tile) * .3); opacity: .85; margin-top: 1px; }
-
-.tile.m { color: var(--red); }
-.tile.p { color: var(--blue); }
-.tile.s { color: var(--green); }
-.tile.honor .m { font-size: calc(var(--tile) * .58); }
-.tile.kaze { color: var(--slate); }
-.tile.h5 { color: #5a6b78; }   /* 白 */
-.tile.h6 { color: var(--green); } /* 發 */
-.tile.h7 { color: var(--red); }   /* 中 */
+/* 絵柄は SVG。牌の枠内いっぱいに描く */
+.tile .face {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 6%;
+}
 
 /* ミニ牌（退避枠・NEXT） */
 .tile.mini {
   width: var(--mini);
-  height: calc(var(--mini) * 1.3);
+  height: calc(var(--mini) * 1.2);
   border-radius: 3px;
   flex: 0 0 auto;
 }
-.tile.mini .m { font-size: calc(var(--mini) * .58); }
-.tile.mini .s { font-size: calc(var(--mini) * .38); margin-top: 0; }
-.tile.mini.honor .m { font-size: calc(var(--mini) * .64); }
+.tile.mini .face { padding: 4%; }
 
-.tile.micro { width: calc(var(--mini) * .86); height: calc(var(--mini) * 1.1); }
-.tile.micro .m { font-size: calc(var(--mini) * .5); }
-.tile.micro .s { font-size: calc(var(--mini) * .34); }
+.tile.micro { width: calc(var(--mini) * .88); height: calc(var(--mini) * 1.06); }
 
 /* 盤面の状態 */
 .cell.piece .tile { box-shadow: 0 0 0 2px rgba(217, 178, 95, .85), 0 2px 6px rgba(0, 0, 0, .5); }

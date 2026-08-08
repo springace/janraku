@@ -148,14 +148,6 @@ export class TileSupply {
   }
 }
 
-/** 表示用のラベル: { main, sub, cls } */
-export function tileFace(id) {
-  const s = suitOf(id);
-  const n = numOf(id);
-  if (s === 'z') return { main: HONOR_LABEL[n], sub: '', cls: n >= 5 ? `honor h${n}` : 'honor kaze' };
-  return { main: String(n), sub: SUIT_LABEL[s], cls: s };
-}
-
 /** 「1萬」のような読み上げ用テキスト */
 export function tileName(id) {
   const s = suitOf(id);
