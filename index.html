@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1">
+<meta name="theme-color" content="#101a15">
+<meta name="description" content="麻雀牌を落として順子・刻子・槓子を組み、4面子1雀頭で和了する落ちモノパズル。">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>雀落 — 麻雀落ちモノパズル</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23f4efe0'/><text x='16' y='24' font-size='22' text-anchor='middle' fill='%23b3261e' font-family='sans-serif'>雀</text></svg>">
+</head>
+<body>
+<div id="app">
+
+  <header id="hud">
+    <div class="hud-item"><span class="hud-label">SCORE</span><span id="score">0</span></div>
+    <div class="hud-item"><span class="hud-label">Lv</span><span id="level">1</span></div>
+    <div class="hud-item"><span class="hud-label">局</span><span id="kyoku">1</span></div>
+    <div class="hud-next">
+      <span class="hud-label">NEXT</span>
+      <div id="next" class="tile-row"></div>
+    </div>
+    <button id="pauseBtn" class="icon-btn" aria-label="ポーズ">❙❙</button>
+  </header>
+
+  <section id="stocks">
+    <div class="stock-row">
+      <span class="stock-label">面子枠</span>
+      <div id="meldStock" class="slots"></div>
+    </div>
+    <div class="stock-row">
+      <span class="stock-label">対子枠</span>
+      <div id="pairStock" class="slots"></div>
+    </div>
+  </section>
+
+  <main id="playfield">
+    <div id="boardWrap">
+      <div id="board" role="grid" aria-label="盤面"></div>
+      <div id="banner" class="banner hidden"></div>
+    </div>
+  </main>
+
+  <nav id="controls">
+    <button class="ctrl" data-act="left" aria-label="左へ">◀</button>
+    <button class="ctrl" data-act="rotate" aria-label="回転">⟳</button>
+    <button class="ctrl" data-act="right" aria-label="右へ">▶</button>
+    <button class="ctrl" data-act="soft" aria-label="ソフトドロップ">▼</button>
+    <button class="ctrl wide" data-act="hard" aria-label="ハードドロップ">⤓</button>
+  </nav>
+
+  <!-- ===== タイトル ===== -->
+  <div id="titleScreen" class="overlay">
+    <div class="panel">
+      <h1 class="logo">雀落<span class="logo-sub">JANRAKU</span></h1>
+      <p class="tagline">麻雀牌を落として、4面子1雀頭を組み上げろ。</p>
+
+      <div class="field">
+        <div class="field-label">モード</div>
+        <div class="choice" data-group="mode">
+          <button class="choice-btn selected" data-value="A">
+            <b>老頭萬子</b><small>萬子は1萬・9萬のみ／大物手向き</small>
+          </button>
+          <button class="choice-btn" data-value="B">
+            <b>全牌</b><small>34種すべて／標準・技巧派</small>
+          </button>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-label">対局形式</div>
+        <div class="choice" data-group="length">
+          <button class="choice-btn selected" data-value="endless"><b>エンドレス</b><small>積み切るまで</small></button>
+          <button class="choice-btn" data-value="hanchan"><b>半荘</b><small>8局で終了</small></button>
+        </div>
+      </div>
+
+      <button id="startBtn" class="primary-btn">対局開始</button>
+      <button id="rulesBtn" class="ghost-btn">遊び方</button>
+    </div>
+  </div>
+
+  <!-- ===== ルール ===== -->
+  <div id="rulesScreen" class="overlay hidden">
+    <div class="panel scroll">
+      <h2>遊び方</h2>
+      <h3>1. 落として面子を作る</h3>
+      <p>麻雀牌が縦3枚組で落ちてきます。<b>回転</b>はピース内の牌の並び替えです。<br>
+      タテかヨコに隣り合う3マスで<b>順子</b>（同種の連番3枚・順不同OK）か<b>刻子</b>（同一牌3枚）が揃うと、その面子は<b>面子枠</b>へ退避します。4枚並べば<b>槓子</b>です。</p>
+
+      <h3>2. 雀頭はタップで確保する</h3>
+      <p>盤面で同一牌が隣り合うと<b>光ります</b>。タップすると<b>対子枠</b>へ退避します。<br>
+      対子枠に同じ牌がすでにあるときにタップすると、合体して<b>暗槓</b>になり面子枠へ入ります。</p>
+
+      <h3>3. 和了</h3>
+      <p><b>面子枠4つ＋対子枠1つ以上</b>で自動的に和了。雀頭は最も高い点数になる対子が自動で選ばれます（高点法）。<br>
+      面子枠が空のまま<b>対子を7つ</b>集めると<b>七対子</b>で和了。<br>
+      使わなかった対子は次局へ持ち越します。</p>
+
+      <h3>4. 点数</h3>
+      <p>すべて門前・ツモ扱いのため<b>門前清自摸和</b>が常時つきます。符・翻は麻雀に準拠（待ち符は0、平和は20符固定、七対子は25符）。<br>
+      連鎖すると和了点に倍率がかかります（2連鎖×1.5／3連鎖×2.0／5連鎖以上×3.0）。</p>
+
+      <h3>門前限定ゆえの注意</h3>
+      <p>鳴きがないため刻子は<b>常に暗刻</b>です。したがって<b>対々和は成立せず</b>、4刻子は<b>四暗刻（役満）</b>になります。<br>
+      場風・自風がないので役牌は<b>三元牌（白發中）のみ</b>。立直・一発・国士無双・九蓮宝燈は不採用です。<br>
+      老頭萬子モードでは萬子の順子が作れないため<b>三色同順は成立しません</b>。</p>
+
+      <h3>操作</h3>
+      <p>ボタンのほか、盤面を<b>左右スワイプ</b>で移動、<b>下スワイプ</b>でハードドロップ、<b>上スワイプ</b>で回転。<br>
+      キーボード: ←→ 移動 / ↑ 回転 / ↓ ソフトドロップ / Space ハードドロップ / P ポーズ</p>
+
+      <button id="rulesCloseBtn" class="primary-btn">閉じる</button>
+    </div>
+  </div>
+
+  <!-- ===== 和了 ===== -->
+  <div id="agariScreen" class="overlay hidden">
+    <div class="panel agari">
+      <div id="agariRank" class="agari-rank"></div>
+      <div id="agariHand" class="agari-hand"></div>
+      <ul id="agariYaku" class="yaku-list"></ul>
+      <div id="agariCalc" class="agari-calc"></div>
+      <div id="agariGain" class="agari-gain"></div>
+      <button id="agariBtn" class="primary-btn">次局へ</button>
+    </div>
+  </div>
+
+  <!-- ===== 終了 ===== -->
+  <div id="overScreen" class="overlay hidden">
+    <div class="panel">
+      <h2 id="overTitle">終局</h2>
+      <div class="final-score"><span class="hud-label">SCORE</span><b id="finalScore">0</b></div>
+      <div id="overStats" class="over-stats"></div>
+      <button id="retryBtn" class="primary-btn">もう一局</button>
+      <button id="toTitleBtn" class="ghost-btn">タイトルへ</button>
+    </div>
+  </div>
+
+  <!-- ===== ポーズ ===== -->
+  <div id="pauseScreen" class="overlay hidden">
+    <div class="panel">
+      <h2>一時停止</h2>
+      <button id="resumeBtn" class="primary-btn">再開</button>
+      <button id="quitBtn" class="ghost-btn">タイトルへ</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+</div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
