@@ -353,6 +353,22 @@ html, body {
   letter-spacing: .06em;
   cursor: pointer;
 }
+.toggles { display: flex; gap: 6px; }
+.toggle-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--felt-line);
+  background: rgba(255, 255, 255, .04);
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+.toggle-btn.on { border-color: var(--gold); background: rgba(217, 178, 95, .16); color: var(--ink); }
+
+.icon-btn svg { display: block; width: 16px; height: 16px; margin: 0 auto; }
+.icon-btn.off { color: var(--muted); opacity: .6; }
+
 .ghost-btn {
   padding: 10px;
   border-radius: 10px;

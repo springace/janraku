@@ -5,6 +5,7 @@ import {
 } from './game.js';
 import { MODE_A, MODE_B, tileName } from './tiles.js';
 import { tileSVG } from './tileart.js';
+import { GameAudio } from './audio.js';
 import { COLS, ROWS, PIECE_SIZE } from './board.js';
 
 const $ = (id) => document.getElementById(id);
@@ -25,7 +26,10 @@ const el = {
   pauseScreen: $('pauseScreen'), resumeBtn: $('resumeBtn'), quitBtn: $('quitBtn'),
   discardScreen: $('discardScreen'), discardTitle: $('discardTitle'), discardHand: $('discardHand'),
   discardNote: $('discardNote'), discardOk: $('discardOk'), discardCancel: $('discardCancel'),
+  soundBtn: $('soundBtn'), bgmToggle: $('bgmToggle'), sfxToggle: $('sfxToggle'),
 };
+
+const audio = new GameAudio();
 
 let game = null;
 let rafId = 0;
@@ -34,6 +38,7 @@ let tilePx = 40;
 let opts = { mode: MODE_A, hanchan: false };
 let bannerTimer = 0;
 let toastTimer = 0;
+let lastLevel = 1;
 
 // ---------- 牌の描画 ----------
 
@@ -159,6 +164,11 @@ function renderHud() {
   const sig = `${game.score}|${game.level}|${game.kyoku}|${game.next.join('')}`;
   if (sig === hudSig) return;
   hudSig = sig;
+  if (game.level !== lastLevel) {
+    if (game.level > lastLevel) audio.play('levelup');
+    lastLevel = game.level;
+    audio.setLevel(game.level);
+  }
   el.score.textContent = game.score.toLocaleString();
   el.level.textContent = game.level;
   el.kyoku.textContent = game.hanchan ? `${game.kyoku}/8` : game.kyoku;
@@ -209,16 +219,32 @@ function loop(ts) {
 
 function onEvent(ev) {
   if (ev.type === 'meld') {
+    audio.play('meld', ev.chain);
     if (ev.chain >= 2) showBanner(`${ev.chain} 連鎖!`);
   } else if (ev.type === 'kan') {
+    audio.play('kan');
     showBanner('暗槓!');
+  } else if (ev.type === 'pair') {
+    audio.play('pair');
+  } else if (ev.type === 'move') {
+    audio.play('move');
+  } else if (ev.type === 'rotate') {
+    audio.play('rotate');
+  } else if (ev.type === 'lock') {
+    audio.play('lock');
   } else if (ev.type === 'discard') {
+    audio.play('discard');
     toast(`捨てました  -${ev.cost.toLocaleString()}`);
   } else if (ev.type === 'agari') {
+    audio.play('agari', ev.agari.scored.isYakuman ? 1 : 0);
     showAgari(ev.agari);
   } else if (ev.type === 'gameover') {
+    audio.stopMusic();
+    audio.play('gameover');
     showOver('終局', false);
   } else if (ev.type === 'complete') {
+    audio.stopMusic();
+    audio.play('agari', 1);
     showOver('半荘終了', true);
   }
 }
@@ -353,7 +379,10 @@ function bindBoardGestures() {
 
 function tryBank(r, c) {
   const res = game.tapCell(r, c);
-  if (res && res.ok === false && res.reason) toast(res.reason);
+  if (res && res.ok === false && res.reason) {
+    audio.play('deny');
+    toast(res.reason);
+  }
 }
 
 // ---------- 退避枠から捨てる ----------
@@ -425,10 +454,53 @@ function togglePause() {
   if (game.phase === PHASE.PAUSED) {
     game.togglePause();
     el.pauseScreen.classList.add('hidden');
+    audio.startMusic();
   } else if (game.phase === PHASE.FALLING || game.phase === PHASE.RESOLVING) {
     game.togglePause();
     el.pauseScreen.classList.remove('hidden');
+    audio.stopMusic();
   }
+  audio.play('ui');
+}
+
+
+// ---------- サウンド ----------
+
+const SPEAKER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" stroke="none"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19.5 5.5a9 9 0 0 1 0 13"/></svg>';
+const MUTED = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" stroke="none"/><path d="M17 9.5l5 5M22 9.5l-5 5"/></svg>';
+
+function renderSoundUI() {
+  el.soundBtn.innerHTML = audio.muted ? MUTED : SPEAKER;
+  el.soundBtn.classList.toggle('off', audio.muted);
+  el.bgmToggle.classList.toggle('on', audio.musicOn);
+  el.sfxToggle.classList.toggle('on', audio.sfxOn);
+}
+
+function bindSound() {
+  el.soundBtn.addEventListener('click', () => {
+    audio.unlock();
+    audio.setMuted(!audio.muted);
+    renderSoundUI();
+    if (!audio.muted) audio.play('ui');
+  });
+  el.bgmToggle.addEventListener('click', () => {
+    audio.unlock();
+    audio.setMusic(!audio.musicOn);
+    renderSoundUI();
+    audio.play('ui');
+  });
+  el.sfxToggle.addEventListener('click', () => {
+    audio.unlock();
+    audio.setSfx(!audio.sfxOn);
+    renderSoundUI();
+    audio.play('ui');
+  });
+  // タブが隠れている間は鳴らさない
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) audio.suspend();
+    else if (game && game.phase !== PHASE.GAMEOVER) audio.resume();
+  });
+  renderSoundUI();
 }
 
 // ---------- 画面遷移 ----------
@@ -436,8 +508,13 @@ function togglePause() {
 function startGame() {
   stockSig = '';
   hudSig = '';
+  lastLevel = 1;
+  audio.unlock();
+  audio.setLevel(1);
+  audio.startMusic();
   game = new Game({ mode: opts.mode, hanchan: opts.hanchan, onEvent });
   window.__game = game; // デバッグ/自動テスト用
+  window.__audio = audio;
   el.titleScreen.classList.add('hidden');
   el.overScreen.classList.add('hidden');
   el.agariScreen.classList.add('hidden');
@@ -464,8 +541,15 @@ function bindMenus() {
   }
 
   el.startBtn.addEventListener('click', startGame);
-  el.rulesBtn.addEventListener('click', () => el.rulesScreen.classList.remove('hidden'));
-  el.rulesCloseBtn.addEventListener('click', () => el.rulesScreen.classList.add('hidden'));
+  el.rulesBtn.addEventListener('click', () => {
+    audio.unlock();
+    audio.play('ui');
+    el.rulesScreen.classList.remove('hidden');
+  });
+  el.rulesCloseBtn.addEventListener('click', () => {
+    audio.play('ui');
+    el.rulesScreen.classList.add('hidden');
+  });
 
   el.agariBtn.addEventListener('click', () => {
     el.agariScreen.classList.add('hidden');
@@ -474,6 +558,8 @@ function bindMenus() {
 
   el.retryBtn.addEventListener('click', startGame);
   el.toTitleBtn.addEventListener('click', () => {
+    audio.play('ui');
+    audio.stopMusic();
     el.overScreen.classList.add('hidden');
     el.titleScreen.classList.remove('hidden');
   });
@@ -481,6 +567,8 @@ function bindMenus() {
   el.pauseBtn.addEventListener('click', togglePause);
   el.resumeBtn.addEventListener('click', togglePause);
   el.quitBtn.addEventListener('click', () => {
+    audio.play('ui');
+    audio.stopMusic();
     el.pauseScreen.classList.add('hidden');
     el.titleScreen.classList.remove('hidden');
     game = null;
@@ -493,6 +581,7 @@ buildBoard();
 bindControls();
 bindBoardGestures();
 bindStockDiscard();
+bindSound();
 bindKeys();
 bindMenus();
 layout();
