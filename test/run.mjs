@@ -540,5 +540,39 @@ t('縦向きの落下では隙間ができない', () => {
   eq(g.board.get(bottom - 1, 2), '6p');
 });
 
+// ================= 落下速度 =================
+console.log('\n落下速度');
+
+t('初期の落下はゆっくりで、盤面を落ちきるのに10秒以上かかる', () => {
+  const g = newGame();
+  eq(g.level, 1);
+  eq(g.dropInterval, 1100);
+  const fallSec = (g.dropInterval * (g.board.rows - 1)) / 1000;
+  ok(fallSec > 10, `上から下まで ${fallSec.toFixed(1)}s`);
+});
+
+t('レベルは和了3回ごと・経過90秒ごとに上がる', () => {
+  const g = newGame();
+  g.agariCount = 2;
+  eq(g.level, 1);
+  g.agariCount = 3;
+  eq(g.level, 2);
+  g.agariCount = 0;
+  g.elapsed = 89000;
+  eq(g.level, 1);
+  g.elapsed = 90000;
+  eq(g.level, 2);
+});
+
+t('加速はゆるやかで、下限で頭打ちになる', () => {
+  const g = newGame();
+  const at = (lv) => { g.agariCount = (lv - 1) * 3; g.elapsed = 0; return g.dropInterval; };
+  eq(at(2), 1062);
+  eq(at(10), 758);
+  ok(at(10) > 700, 'レベル10でもまだ余裕がある');
+  eq(at(40), 260, '下限で頭打ち');
+  ok(at(5) < at(1), 'レベルが上がれば速くなる');
+});
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail === 0 ? 0 : 1);

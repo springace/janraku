@@ -32,6 +32,14 @@ const FLASH_MS = 260;
 const SETTLE_MS = 140;
 const LOCK_DELAY_MS = 260;
 
+/** 落下速度: 1段ぶんの間隔。レベルが上がるほど短くなる */
+const DROP_START_MS = 1100;
+const DROP_STEP_MS = 38;
+const DROP_MIN_MS = 260;
+/** レベルの上がりかた: 和了 n 回ごと / 経過 n ミリ秒ごとに +1 */
+const AGARI_PER_LEVEL = 3;
+const MS_PER_LEVEL = 90000;
+
 export class Game {
   constructor({ mode = MODE_A, hanchan = false, onEvent = () => {}, cols = COLS, rows = ROWS, bias } = {}) {
     this.mode = mode;
@@ -69,11 +77,11 @@ export class Game {
   // ---------- 公開情報 ----------
 
   get level() {
-    return 1 + Math.floor(this.agariCount / 2) + Math.floor(this.elapsed / 60000);
+    return 1 + Math.floor(this.agariCount / AGARI_PER_LEVEL) + Math.floor(this.elapsed / MS_PER_LEVEL);
   }
 
   get dropInterval() {
-    return Math.max(120, 780 - (this.level - 1) * 55);
+    return Math.max(DROP_MIN_MS, DROP_START_MS - (this.level - 1) * DROP_STEP_MS);
   }
 
   /** 雀頭待ち（面子は揃っているが対子がない）状態か */
